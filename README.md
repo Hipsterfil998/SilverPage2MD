@@ -1,4 +1,4 @@
-# Book2md_Bench
+# BookMDBench
 
 A benchmark dataset builder for document understanding tasks.
 It downloads EPUB books from [Project Gutenberg](https://www.gutenberg.org/), converts them to Markdown (ground truth) and PDF (model input), samples pages across front/body/back sections, and renders them as JPEG images.

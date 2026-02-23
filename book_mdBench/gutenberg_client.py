@@ -3,9 +3,12 @@ Client for the Gutendex API (Project Gutenberg).
 """
 
 import random
+import time
 from pathlib import Path
 
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 from book_mdBench.config import GUTENDEX_URL
 
@@ -13,14 +16,21 @@ from book_mdBench.config import GUTENDEX_URL
 class GutenbergClient:
     """Search and download books from Project Gutenberg via Gutendex."""
 
+    def __init__(self):
+        retry = Retry(total=5, backoff_factor=2, status_forcelist=[500, 502, 503, 504])
+        adapter = HTTPAdapter(max_retries=retry)
+        self._session = requests.Session()
+        self._session.mount("https://", adapter)
+        self._session.mount("http://", adapter)
+
     def sample(self, lang_code: str, n: int) -> list[dict]:
         """Return up to *n* books with EPUB downloads for the given language."""
         books, page = [], 1
         while len(books) < n:
-            resp = requests.get(
+            resp = self._session.get(
                 GUTENDEX_URL,
                 params={"languages": lang_code, "page": page},
-                timeout=30,
+                timeout=60,
             )
             resp.raise_for_status()
             data = resp.json()
@@ -47,7 +57,7 @@ class GutenbergClient:
         if dest.exists():
             return True
         try:
-            resp = requests.get(url, timeout=60)
+            resp = self._session.get(url, timeout=120)
             resp.raise_for_status()
             dest.write_bytes(resp.content)
             return True

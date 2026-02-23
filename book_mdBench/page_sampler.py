@@ -5,7 +5,6 @@ Markdown page splitting and stratified sampling.
 import random
 import re
 from pathlib import Path
-
 from book_mdBench.config import MIN_MD_CHARS, STRATA
 
 

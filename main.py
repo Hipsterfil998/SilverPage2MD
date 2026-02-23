@@ -17,6 +17,7 @@ Colab setup:
 """
 
 import json
+import re
 from pathlib import Path
 
 from book_mdBench.config import LANGUAGES, N_BOOKS, N_PAGES, OUTPUT_DIR
@@ -37,14 +38,15 @@ class BenchmarkBuilder:
 
     def process_book(self, book: dict, lang_dir: Path) -> dict | None:
         """Run the full pipeline for a single book. Returns None if < N_PAGES pages saved."""
-        book_dir  = lang_dir / str(book["id"])
+        slug      = re.sub(r"[^\w\-]", "_", book["title"])[:60].strip("_")
+        book_dir  = lang_dir / f"{book['id']}_{slug}"
         pages_dir = book_dir / "pages"
         book_dir.mkdir(parents=True, exist_ok=True)
 
         print(f"  → [{book['id']}] {book['title']}")
 
-        epub_path = book_dir / "book.epub"
-        md_path   = book_dir / "book.md"
+        epub_path  = book_dir / "book.epub"
+        md_path    = book_dir / "book.md"
 
         # download and convert EPUB → Markdown
         if not self.client.download_epub(book["epub_url"], epub_path):

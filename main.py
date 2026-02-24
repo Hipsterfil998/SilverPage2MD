@@ -3,17 +3,20 @@ Benchmark dataset builder.
 
 Orchestrates the full pipeline:
   1. Search and download EPUBs from Project Gutenberg
-  2. Convert EPUB → Markdown
-  3. Split Markdown into chunks, sample stratified across front/body/back
-  4. Render each sampled chunk to JPEG (chunk.md → PDF → JPEG)
+  2. Parse EPUB spine → ordered sections; convert HTML → clean Markdown
+  3. Sample sections stratified across front / body / back
+  4. Render each sampled Markdown chunk → PDF (xelatex) → JPEG
   5. Save aligned (image, markdown) pairs with metadata
+
+Since both the JPEG and the Markdown come from the same source text,
+image and ground truth are guaranteed to represent the same content.
 
 Usage:
     python main.py
 
-Colab setup:
-    !apt-get install -y pandoc poppler-utils -q
-    !pip install -r requirements.txt -q
+System dependencies:
+    sudo apt-get install -y pandoc texlive-xetex \
+        texlive-lang-italian texlive-lang-german poppler-utils
 """
 
 import json
@@ -37,8 +40,11 @@ class BenchmarkBuilder:
         self.sampler   = PageSampler()
         self.renderer  = PageRenderer()
 
-    def process_book(self, book: dict, lang_dir: Path) -> dict | None:
-        """Run the full pipeline for a single book. Returns None if < N_PAGES pages saved."""
+    def process_book(self, book: dict, lang_dir: Path, lang: str) -> dict | None:
+        """
+        Run the full pipeline for a single book.
+        Returns None if fewer than N_PAGES pages could be saved.
+        """
         slug      = re.sub(r"[^\w\-]", "_", book["title"])[:60].strip("_")
         book_dir  = lang_dir / f"{book['id']}_{slug}"
         pages_dir = book_dir / "pages"
@@ -46,35 +52,46 @@ class BenchmarkBuilder:
 
         print(f"  → [{book['id']}] {book['title']}")
 
-        epub_path  = book_dir / "book.epub"
-        md_path    = book_dir / "book.md"
+        epub_path = book_dir / "book.epub"
+        md_path   = book_dir / "book.md"
 
-        # download and convert EPUB → Markdown
+        # 1. Download EPUB
         if not self.client.download_epub(book["epub_url"], epub_path):
             return None
-        if not self.converter.to_markdown(epub_path, md_path):
+
+        # 2. Parse EPUB spine → Markdown sections
+        sections = self.converter.get_sections(epub_path)
+        if not sections:
+            print(f"    ✗ No sections found, skipping")
             return None
 
-        # split and sample
-        chunks = self.sampler.split(md_path)
+        # Save full-book Markdown as concatenation (for reference)
+        if not md_path.exists():
+            md_path.write_text(
+                "\n\n---\n\n".join(s["md"] for s in sections),
+                encoding="utf-8",
+            )
+
+        # 3. Filter and sample sections
+        chunks = self.sampler.split(sections)
         if len(chunks) < 10:
-            print(f"    ✗ Too few chunks ({len(chunks)}), skipping")
+            print(f"    ✗ Too few sections ({len(chunks)}), skipping")
             return None
 
         sampled     = self.sampler.sample(len(chunks))
         all_indices = sorted(i for indices in sampled.values() for i in indices)
 
-        # render each sampled chunk: md → pdf → jpg
-        rendered = self.renderer.render(chunks, all_indices, pages_dir)
+        # 4. Render sampled sections: Markdown → PDF (xelatex) → JPEG
+        rendered = self.renderer.render(chunks, all_indices, pages_dir, lang=lang)
 
-        # save aligned (image, markdown) pairs
+        # 5. Save aligned (image, markdown) pairs
         page_records = []
         for zone, indices in sampled.items():
             for idx in indices:
                 if idx not in rendered:
                     continue
                 chunk_path = pages_dir / f"page_{idx:04d}.md"
-                chunk_path.write_text(chunks[idx], encoding="utf-8")
+                chunk_path.write_text(chunks[idx]["md"], encoding="utf-8")
                 page_records.append({
                     "page_idx": idx,
                     "zone":     zone,
@@ -106,9 +123,9 @@ class BenchmarkBuilder:
             lang_dir = OUTPUT_DIR / language
             lang_dir.mkdir(exist_ok=True)
 
-            results      = []
-            seen_ids     = set()
-            page          = 1
+            results  = []
+            seen_ids = set()
+            page     = 1
 
             while len(results) < N_BOOKS:
                 candidates = self.client.sample(lang_code, N_BOOKS * 2, page=page)
@@ -122,7 +139,7 @@ class BenchmarkBuilder:
                     if len(results) >= N_BOOKS:
                         break
                     seen_ids.add(book["id"])
-                    result = self.process_book(book, lang_dir)
+                    result = self.process_book(book, lang_dir, lang=lang_code)
                     if result:
                         results.append(result)
 
@@ -131,13 +148,13 @@ class BenchmarkBuilder:
             all_metadata[language] = results
             (lang_dir / "metadata.json").write_text(
                 json.dumps(results, ensure_ascii=False, indent=2),
-                encoding="utf-8"
+                encoding="utf-8",
             )
             print(f"\n✓ {len(results)}/{N_BOOKS} books completed for {language}")
 
         (OUTPUT_DIR / "metadata.json").write_text(
             json.dumps(all_metadata, ensure_ascii=False, indent=2),
-            encoding="utf-8"
+            encoding="utf-8",
         )
         print(f"\n✓ Done. Dataset saved to {OUTPUT_DIR}/")
 

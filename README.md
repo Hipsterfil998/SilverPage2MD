@@ -1,18 +1,20 @@
 <div align="center">
 
-# Page2MDBench
+# SilverPage2MD
 
 </div>
 
-A **multilingual** benchmark dataset builder for document understanding tasks.
-It downloads EPUB books from [Project Gutenberg](https://www.gutenberg.org/) and supports any language available in its catalogue (Italian, German, English, French, Spanish, Portuguese, and more).
-Each section is converted to clean Markdown, split into page-sized chunks, and rendered as a JPEG image via LaTeX.
+A **silver standard generator** for multilingual PDF-to-Markdown conversion benchmarking.
+
+It downloads EPUB books from [Project Gutenberg](https://www.gutenberg.org/) and supports any language available in its catalogue (Italian, German, English, French, Spanish, Portuguese, and more). Each section is converted to clean Markdown, split into page-sized chunks, and rendered as a JPEG image via LaTeX.
+
+> **Silver standard note:** The ground truth produced by this pipeline is a *silver* standard, automatically derived rather than manually annotated. The benchmark is **literary in nature**: all source material comes from Project Gutenberg and consists of prose, poetry, and essays, with little to no mathematical notation, charts, or technical/scientific content. The size of the benchmark scales with the number of languages included and the computational resources available to run the prediction models. Adding more languages increases dataset coverage but also raises rendering and inference costs proportionally.
 
 ## Pipeline
 
 1. Search and download EPUBs from Project Gutenberg
 2. Parse EPUB spine → extract HTML sections in reading order
-3. Convert each HTML section → clean Markdown (ground truth)
+3. Convert each HTML section → clean Markdown (silver standard)
 4. Split sections into page-sized chunks:
    - primary: split at `[p. N]` markers (original book pagination)
    - fallback: split into ~2800-char blocks at paragraph boundaries
@@ -20,9 +22,9 @@ Each section is converted to clean Markdown, split into page-sized chunks, and r
 6. Render each sampled chunk to JPEG (`chunk.md → PDF (xelatex) → JPEG`)
 7. Save aligned `(image, markdown)` pairs with metadata
 
-Since both the JPEG and the Markdown come from the same source text, image and ground truth always represent exactly the same content.
+Since both the JPEG and the Markdown come from the same source text, image and silver standard reference always represent exactly the same content.
 
-## Markdown Ground Truth
+## Markdown Silver Standard
 
 Each `.md` file preserves:
 
@@ -53,7 +55,14 @@ Each `.md` file preserves:
 
 ## Installation
 
-### 1. System dependencies
+### 1. Clone the repository
+
+```bash
+git clone https://github.com/Hipsterfil998/Page2MDBench
+cd Page2MDBench
+```
+
+### 2. System dependencies
 
 ```bash
 sudo apt-get install -y pandoc poppler-utils texlive-xetex texlive-lang-italian texlive-lang-german
@@ -67,7 +76,7 @@ On Google Colab:
 !pip install -r requirements.txt -q
 ```
 
-### 2. Python dependencies
+### 3. Python dependencies
 
 ```bash
 pip install -r requirements.txt
@@ -145,13 +154,13 @@ python eval.py --ref-dir ... --pred-dir ... --bert
 ## Project Structure
 
 ```
-Page2MDBench/
+SilverPage2MD/
 ├── BenchmarkBuilder.py    # Entry point — builds the dataset
 ├── eval.py                # Evaluation script
 ├── predict.py             # Prediction script (VLM via vLLM)
 ├── config.py              # Global parameters
 │
-├── book2md/               # Dataset construction pipeline
+├── Page2MDSilver/         # Dataset construction pipeline
 │   ├── gutenberg_client.py  # Project Gutenberg search + EPUB download
 │   ├── epub_converter.py    # EPUB spine parsing + HTML → Markdown
 │   ├── page_sampler.py      # Chunk splitting + stratified sampling
@@ -180,4 +189,17 @@ dataset/
 │           └── page_0001.jpg
 └── german/
     └── ...
+```
+
+## Citation
+
+If you use this work, please cite:
+
+```bibtex
+@misc{pellegrino2026silverpage2md,
+  author       = {Pellegrino, Filippo},
+  title        = {SilverPage2MD: A Silver Standard Generator for Multilingual PDF-to-Markdown Benchmarking},
+  year         = {2026},
+  howpublished = {\url{https://github.com/Hipsterfil998/Page2MDBench}}
+}
 ```

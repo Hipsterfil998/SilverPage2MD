@@ -25,10 +25,10 @@ import shutil
 from pathlib import Path
 
 from config import LANGUAGES, N_BOOKS, N_PAGES, OUTPUT_DIR
-from book2md.gutenberg_client import GutenbergClient
-from book2md.epub_converter import EpubConverter
-from book2md.page_sampler import PageSampler
-from book2md.page_renderer import PageRenderer
+from Page2MDSilver.gutenberg_client import GutenbergClient
+from Page2MDSilver.epub_converter import EpubConverter
+from Page2MDSilver.page_sampler import PageSampler
+from Page2MDSilver.page_renderer import PageRenderer
 
 
 class BenchmarkBuilder:

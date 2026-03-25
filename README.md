@@ -58,8 +58,8 @@ Each `.md` file preserves:
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/Hipsterfil998/Page2MDBench
-cd Page2MDBench
+git clone https://github.com/Hipsterfil998/SilverPage2MD.git
+cd SilverPage2MD
 ```
 
 ### 2. System dependencies
